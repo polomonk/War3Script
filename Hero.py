@@ -54,12 +54,8 @@ class Hero:
 
     def dump(self, x, y, dumps=1):
         window = WindowsUtil.instance.get_war3_window()
-        print(window)
         center_x, center_y = WindowsUtil.get_window_center(window)
-        print(x, y)
-        print(center_x, center_y)
         x, y = min(center_x + x, window.width // 2 - 100), min(center_y + y, window.height // 2 - 100)  # 不超过窗口
-        print(x, y)
         self.select_hero()
         action = MoveInsideWindowAction(window, x, y)
         for i in range(dumps):
@@ -68,7 +64,9 @@ class Hero:
 
     def get_state(self) -> bool:
         window = WindowsUtil.instance.get_war3_window()
-        for i in range(1, 5):
+        if window is None:
+            return False
+        for i in range(0, 4):
             line = ORC.region_text(window.left + 928, window.top + 160 + 25 * i, 340, 25).__str__()
             Log.d(line)
             # 0.玩家(，)战斗力, 1.主线， 2.吞噬装备， 3.无尽之塔， 4.属性修炼, 5.游戏状态

@@ -39,14 +39,17 @@ class Strategy(ABC):
         # 选择难度  1-5(500, 302 + 70*(n-1)) 6-10(740, 302 + 70*(n-1) # 难度图标(192 , 80)  (608, 294)
         x = 500 + 192 // 2 if self.difficulty <= 5 else 740 + 192 // 2
         y = 294 + (self.difficulty - 1) * 70
-        ImageClickAction(self.model + "Text").set_timeout_second(2 * 60).set_retry_interval(1).set_confidence(0.7) \
+        ImageClickAction(self.model + "Text").set_timeout_second(60).set_retry_interval(1).set_confidence(0.7) \
             .set_next_action(ClickAction()).set_before_second(1) \
             .set_next_action(ClickInsideWindowAction(WindowsUtil.instance.get_war3_window(), x, y)) \
             .start()
 
     def choose_hero(self):
         window = WindowsUtil.instance.get_war3_window()
-        ClickBasedOnWindowCenterAction(window).set_before_second(.5) \
+        ClickBasedOnWindowCenterAction(window).set_before_second(1) \
+            .set_next_action(ClickBasedOnWindowCenterAction(window, 20)) \
+            .set_next_action(ClickBasedOnWindowCenterAction(window, 40)) \
+            .set_next_action(ClickBasedOnWindowCenterAction(window, 60)) \
             .start()
         return True
 
@@ -54,11 +57,12 @@ class Strategy(ABC):
         if not Hero.instance.get_state():   # 没有英雄属性界面说明还在加载界面
             self.select_model_and_difficulty()
             self.choose_hero()
+            # self.share_sharing()
         ImageClickAction("noticeBoard", 466, 32).set_timeout_second(0.5) \
             .start()
-        for i in range(15):
-            time.sleep(.05)
-            pyautogui.scroll(-1000)
+        # for i in range(15):
+        #     time.sleep(.05)
+        #     pyautogui.scroll(-1000)
 
     def share_sharing(self):
         # 共享物品和角色
@@ -90,14 +94,15 @@ class Strategy(ABC):
             .set_next_action(ImageClickAction("askForAdvice")) \
             .start()
 
-    def wait_to_end(self):  # 等待游戏结束
-        AnyImageClickAction(["leaveGame", "gameFailed", "return2platform"]) \
-            .set_retry_interval(5).set_timeout_second(60 * 60 * 8) \
+    def weapon_soul(self):
+        # 器灵(631, 271), 物品栏第一行,第一列(942, 780)
+        KeyAction("F2").set_next_action(ClickInsideWindowAction(WindowsUtil.instance.get_war3_window(), 631, 271)) \
+            .set_timeout_func(NoneAction().action) \
+            .set_next_action(ClickInsideWindowAction(WindowsUtil.instance.get_war3_window(), 942, 780)) \
             .start()
 
+
     def exit_game(self):
-        WindowsUtil.instance.get_war3_window().activate()
-        time.sleep(0.2)
         KeyAction("f10") \
             .set_next_action(KeyAction("e")) \
             .set_next_action(KeyAction("x")) \
@@ -118,11 +123,7 @@ class Strategy(ABC):
         pass
 
     def in_war3(self):
-        WindowsUtil.instance.get_war3_window().activate()
-        time.sleep(.1)
         self.init_war3window()
-        self.share_sharing()
-        self.meditation()
 
 
 class HangUpStrategy(Strategy):
@@ -132,6 +133,7 @@ class HangUpStrategy(Strategy):
 
     def __init__(self):
         super().__init__()
+        self.needBackToBase = False
 
     def search_room(self):
         # 搜索房间. 相对窗口库左上角位置:搜索(360, 440), 搜索(360, 440)
@@ -140,33 +142,55 @@ class HangUpStrategy(Strategy):
 
     def create_room(self):
         # 创建房间. 相对窗口库左上角位置:房间名称(350 124), 地图等级spinner(300, 265), editView(420, 265), 创建(360, 440)
+        # ImageClickAction("createRoom").set_confidence(0.7).set_after_second(0.5) \
+        #     .set_next_action(ImageClickAction("roomName")).set_timeout_second(60 * 5) \
+        #     .set_next_action(KeyAction("BackSpace", 4)) \
+        #     .set_next_action(InputAction("lai")) \
+        #     .set_next_action(KeyAction("Space")) \
+        #     .set_next_action(InputAction("c,")) \
+        #     .set_next_action(KeyAction("Shift")) \
+        #     .set_next_action(KeyAction("Shift")) \
+        #     .set_next_action(InputAction("zixuan")) \
+        #     .set_next_action(KeyAction("Space")) \
+        #     .set_next_action(ImageClickAction("mapLevel")) \
+        #     .set_next_action(ClickAction(-70, 75)) \
+        #     .set_next_action(ClickAction(120, -75)) \
+        #     .set_next_action(InputAction(input_content="1")) \
+        #     .set_next_action(ImageClickAction("create")) \
+        #     .start()
         ImageClickAction("createRoom").set_confidence(0.7).set_after_second(0.5) \
-            .set_next_action(ImageClickAction("roomName")).set_timeout_second(60 * 5) \
-            .set_next_action(KeyAction("BackSpace", 4)) \
-            .set_next_action(InputAction("lai")) \
-            .set_next_action(KeyAction("Space")) \
-            .set_next_action(InputAction("c,")) \
-            .set_next_action(KeyAction("Shift")) \
-            .set_next_action(KeyAction("Shift")) \
-            .set_next_action(InputAction("zixuan")) \
-            .set_next_action(KeyAction("Space")) \
-            .set_next_action(ImageClickAction("mapLevel")) \
-            .set_next_action(ClickAction(-70, 75)) \
-            .set_next_action(ClickAction(120, -75)) \
-            .set_next_action(InputAction(input_content="1")) \
+            .set_next_action(ImageClickAction("roomPassword", 145)) \
+            .set_next_action(InputAction("123")) \
             .set_next_action(ImageClickAction("create")) \
             .start()
 
+
     def in_platform(self):
         self.create_room()
-        self.wait_to_start()
 
     def in_room(self):
-        self.wait_to_start()
+        # self.wait_to_start()
+        AnyImageClickAction(["startGame", "ready"]) \
+            .start()
 
     def in_war3(self):
-        super(HangUpStrategy, self).in_war3()
-        self.wait_to_end()
+        # super(HangUpStrategy, self).in_war3()
+        if not Hero.instance.get_state():   # 没有英雄属性界面说明还在加载界面
+            self.select_model_and_difficulty()
+            self.choose_hero()
+            self.meditation()
+            ImageClickAction("noticeBoard", 466, 32).set_timeout_second(0.5) \
+                .start()
+            self.share_sharing()
+        # 等待15波怪物 (658, 47, 685, 85)
+        if ImageAppearAction("wave15").set_timeout_second(0.3).action():
+            self.needBackToBase = True
+        if self.needBackToBase:
+            self.weapon_soul()
+        # 军团(620, 50, 35, 20)
+        AnyImageClickAction(["return2platform"]) \
+            .set_retry_interval(1).set_timeout_second(.3) \
+            .start()
         # self.exit_game()
 
 
@@ -223,4 +247,5 @@ if __name__ == '__main__':
     # strategy.in_platform()
     # strategy.in_room()
     # strategy.in_war3()
-    Hero.instance.get_state()
+    # Hero.instance.get_state()
+

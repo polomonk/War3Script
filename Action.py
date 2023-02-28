@@ -20,7 +20,7 @@ class ActionComponent(ABC):
 
     """
 
-    def __init__(self, sleep_after_second=0.5, button="LEFT", move_duration=0.1, retry_interval=0.2):
+    def __init__(self, sleep_after_second=0.2, button="LEFT", move_duration=0.1, retry_interval=0.2):
         super().__init__()
         self.head: ActionComponent = self       # 头节点
         self.next: Optional[ActionComponent, None] = None   # 下一个节点
@@ -30,7 +30,7 @@ class ActionComponent(ABC):
         self.move_duration = move_duration  # 鼠标移动时间
         # 异常处理
         self.retry_interval = retry_interval  # 重试间隔
-        self.timeout_second = 3  # 超时时间
+        self.timeout_second = 2  # 超时时间
         self.confidence = 0.8  # 图片置信度
         self.timeout_func: Optional[Callable, None] = None  # 超时处理函数
 
@@ -65,7 +65,7 @@ class ActionComponent(ABC):
         self.confidence = confidence
         return self
 
-    def set_timeout_func(self, func: Callable) -> "ActionComponent":
+    def set_timeout_func(self, func: Optional[Callable]) -> "ActionComponent":
         self.timeout_func = func
         return self
 
@@ -97,6 +97,13 @@ class ActionComponent(ABC):
             self.next.exec()
 
 
+class NoneAction(ActionComponent):  # 空行为
+    def __init__(self):
+        super().__init__()
+
+    def action(self) -> bool:
+        return True
+
 class ClickAction(ActionComponent):  # 点击窗口位置行为
     """
     Click behavior abstract class
@@ -122,8 +129,9 @@ class ClickInsideWindowAction(ClickAction):  # 点击窗口内部位置行为
     def __init__(self, window: BaseWindow, x: int = 0, y: int = 0):
         super().__init__(x, y)
         self.window = window
-        self.x = window.left + x
-        self.y = window.top + y
+        if self.window is not None:
+            self.x = window.left + x
+            self.y = window.top + y
 
     def action(self) -> bool:
         pyautogui.moveTo(self.x, self.y, duration=self.move_duration)
@@ -141,9 +149,10 @@ class ClickBasedOnWindowCenterAction(ClickAction):  # 相对窗口中心点击�
     def __init__(self, window: BaseWindow, x: int = 0, y: int = 0):
         super().__init__(x, y)
         self.window = window
-        center_x, center_y = WindowsUtil.get_window_center(window)
-        self.x = center_x + x
-        self.y = center_y + y
+        if window is not None:
+            center_x, center_y = WindowsUtil.get_window_center(window)
+            self.x = center_x + x
+            self.y = center_y + y
 
     def action(self) -> bool:
         pyautogui.moveTo(self.x, self.y, duration=self.move_duration)
@@ -248,9 +257,10 @@ class MoveInsideWindowAction(MoveAction):
     def __init__(self, window: BaseWindow, x=0, y=0):
         super().__init__(x, y)
         self.window = window
-        center_x, center_y = WindowsUtil.get_window_center(window)
-        self.x = center_x + x
-        self.y = center_y + y
+        if window is not None:
+            center_x, center_y = WindowsUtil.get_window_center(window)
+            self.x = center_x + x
+            self.y = center_y + y
 
     def action(self) -> bool:
         if self.window is not None:
@@ -269,8 +279,9 @@ class RelativeLocationClickAction(ClickAction):  # 给定窗口的相对位置�
     def __init__(self, window: BaseWindow, x, y):
         super().__init__()
         self.window = window
-        self.x = window.top + window.width * x
-        self.y = window.left + window.height * y
+        if window is not None:
+            self.x = window.top + window.width * x
+            self.y = window.left + window.height * y
 
     def action(self) -> bool:
         pyautogui.moveTo(self.x, self.y, self.move_duration)
@@ -313,7 +324,32 @@ class KeyAction(ActionComponent):
         super(KeyAction, self).exec()
 
 
+class ImageAppearAction(ActionComponent):
+    """
+    图片出现行为
+    """
+    def __init__(self, image: str, timeout: int = 60):
+        super().__init__()
+        self.image = ImageUtil.get_file(image)
+        self.timeout = timeout
+
+    def action(self) -> bool:
+        start_time = time.time()
+        while time.time() - start_time < self.timeout:
+            location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence)
+            if location is not None:
+                return True
+            time.sleep(self.retry_interval)
+        return False
+
+    def exec(self):
+        Log.d(str(self.__class__.__name__) + ": image:{}, timeout:{}".format(self.image, self.timeout))
+        super(ImageAppearAction, self).exec()
+
 class ImageDisappearAction(ActionComponent):
+    """
+    图片消失行为
+    """
     def __init__(self, image: str, timeout: int = 60 * 10):
         super().__init__()
         self.image = ImageUtil.get_file(image)
@@ -338,12 +374,15 @@ class RegionSelectionInsideWindowAction(ActionComponent):
     def __init__(self, window: BaseWindow, x, y, w, h):
         super().__init__()
         self.window = window
-        self.x = self.window.left + x - w // 2
-        self.y = self.window.top + y - h // 2
-        self.w = w
-        self.h = h
+        if window is not None:
+            self.x = self.window.left + x - w // 2
+            self.y = self.window.top + y - h // 2
+            self.w = w
+            self.h = h
 
     def action(self) -> bool:
+        if self.window is None:
+            return False
         pyautogui.moveTo(self.x, self.y, self.move_duration)
         pyautogui.dragRel(self.w, self.h, self.move_duration, button="LEFT")
         return True
@@ -370,4 +409,10 @@ class FunctionAction(ActionComponent):
 
 
 if __name__ == "__main__":
-    ImageClickAction("")
+    # WindowsUtil.instance.get_war3_window().activate()
+    time.sleep(1)
+    # ImageClickAction("5bo").start()
+
+    AnyImageClickAction(["return2platform"]) \
+        .set_retry_interval(1).set_timeout_second(.3) \
+        .start()

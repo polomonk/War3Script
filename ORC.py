@@ -20,10 +20,13 @@ def is_string_match(string1, string2) -> bool:
 def region_text(left, top, width, height) -> list[type(str)]:
     # img = pyautogui.screenshot(ImageUtil.images_root + "temp\\test.png", region=(left, top, width, height))
     img = pyautogui.screenshot(None, region=(left, top, width, height))
-    matrix = (1, 0, 0, 0,
-              0, 0, 0, 0,
-              0, 0, 1, 0)
-    img = img.convert("L", matrix)
+    # 去掉128以下的像素
+    img = img.point(lambda p: p > 128 and p)
+    img = img.convert("L")
+    # 如果像素值大于128，就加上128
+    img = img.point(lambda p: p > 50 and p + 200)
+    # 反色
+    # img = img.point(lambda p: 255 - p)
     img.save(ImageUtil.images_root + "temp\\test" + str(random.randint(1, 6)) + ".png")
     text = pytesseract.image_to_string(img, lang="chi_sim", config="--psm 1") \
         # .split("\n")
@@ -32,9 +35,8 @@ def region_text(left, top, width, height) -> list[type(str)]:
 
 
 def get_message(x_left: int, y_bottom: int, line_height: int, width=250, rows: int = 1) -> list[type(str)]:
-    Log.d(
-        "  x:" + str(x_left) + "  y:" + str(y_bottom - line_height * rows) + "  width:" + str(width) + "  height:" + str(
-            line_height * rows))
+    Log.d("  x:" + str(x_left) + "  y:" + str(y_bottom - line_height * rows)
+          + "  width:" + str(width) + "  height:" + str(line_height * rows))
     lines = []
     for i in range(rows):
         lines.append(str(region_text(x_left, y_bottom - line_height * rows, width, line_height)))
@@ -66,6 +68,8 @@ if __name__ == '__main__':
 
     # 722, 694
     while True:
-        lines = get_message(722, 694, 23, 3)
+        # lines = region_text(1256, 439, 85-47, 685-658)
+        # lines = region_text(570, 220, 250, 30)
+        lines = region_text(992, 109, 36, 21)
         print(lines)
         time.sleep(1)

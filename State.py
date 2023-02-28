@@ -28,24 +28,32 @@ class State(ABC):
 class InPlatformState(State):
     def __init__(self):
         super().__init__()
+        Log.i(str(time.time()) + "InPlatformState")
 
     def exec(self):
+        super(InPlatformState, self).exec()
         self.strategy.in_platform()
 
 
 class InRoomState(State):
     def __init__(self):
         super().__init__()
+        Log.i("InRoomState")
 
     def exec(self):
+        super(InRoomState, self).exec()
         self.strategy.in_room()
 
 
 class InWar3State(State):
     def __init__(self):
         super().__init__()
+        Log.i("InWar3State")
 
     def exec(self):
+        super(InWar3State, self).exec()
         self.strategy.in_war3()
+
+
 
 

@@ -31,7 +31,7 @@ def platform_restore():
 
 def main():
     state = init_state()
-    strategy = CarryStrategy()
+    strategy = HangUpStrategy()
     strategy.set_model("nModel").set_difficulty(1)  # 军团降临, 难度一
     state.set_strategy(strategy)
     state.exec()
@@ -42,8 +42,8 @@ window_util = WindowsUtil.instance
 
 if __name__ == '__main__':
     while True:
-        try:
-            main()
-        except Exception as e:
-            print(e)
+        # try:
+        main()
+        # except Exception as e:
+        #     print(e)
 
