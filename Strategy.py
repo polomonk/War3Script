@@ -97,8 +97,8 @@ class Strategy(ABC):
     def weapon_soul(self):
         # 器灵(631, 271), 物品栏第一行,第一列(942, 780)
         KeyAction("F2").set_next_action(ClickInsideWindowAction(WindowsUtil.instance.get_war3_window(), 631, 271)) \
+            .set_next_action(ImageClickAction("weaponSoul", 0, 0)).set_confidence(0.7) \
             .set_timeout_func(NoneAction().action) \
-            .set_next_action(ClickInsideWindowAction(WindowsUtil.instance.get_war3_window(), 942, 780)) \
             .start()
 
 
@@ -166,6 +166,7 @@ class HangUpStrategy(Strategy):
 
 
     def in_platform(self):
+        ImageClickAction("sure").set_timeout_second(0.3).start()
         self.create_room()
 
     def in_room(self):
@@ -175,15 +176,18 @@ class HangUpStrategy(Strategy):
 
     def in_war3(self):
         # super(HangUpStrategy, self).in_war3()
-        if not Hero.instance.get_state():   # 没有英雄属性界面说明还在加载界面
+        if not Hero.instance.get_state() and not self.needBackToBase:   # 没有英雄属性界面说明还在加载界面
             self.select_model_and_difficulty()
             self.choose_hero()
             self.meditation()
             ImageClickAction("noticeBoard", 466, 32).set_timeout_second(0.5) \
                 .start()
             self.share_sharing()
+            for i in range(15):
+                time.sleep(.05)
+                pyautogui.scroll(-1000)
         # 等待15波怪物 (658, 47, 685, 85)
-        if ImageAppearAction("wave15").set_timeout_second(0.3).action():
+        if ImageAppearAction("wave15").set_timeout_second(0.3).set_confidence(0.96).action():
             self.needBackToBase = True
         if self.needBackToBase:
             self.weapon_soul()
@@ -210,8 +214,6 @@ class CarryStrategy(Strategy):
     def in_platform(self):
         self.create_room()
         # self.wait_to_start()
-        ImageClickAction("startGame") \
-            .start()
 
     def in_room(self):
         AnyImageClickAction(["ready", "startGame"]) \
@@ -248,4 +250,5 @@ if __name__ == '__main__':
     # strategy.in_room()
     # strategy.in_war3()
     # Hero.instance.get_state()
+
 

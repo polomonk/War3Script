@@ -24,7 +24,7 @@ def region_text(left, top, width, height) -> list[type(str)]:
     img = img.point(lambda p: p > 128 and p)
     img = img.convert("L")
     # 如果像素值大于128，就加上128
-    img = img.point(lambda p: p > 50 and p + 200)
+    img = img.point(lambda p: p > 10 and p + 200)
     # 反色
     # img = img.point(lambda p: 255 - p)
     img.save(ImageUtil.images_root + "temp\\test" + str(random.randint(1, 6)) + ".png")
@@ -38,7 +38,7 @@ def get_message(x_left: int, y_bottom: int, line_height: int, width=250, rows: i
     Log.d("  x:" + str(x_left) + "  y:" + str(y_bottom - line_height * rows)
           + "  width:" + str(width) + "  height:" + str(line_height * rows))
     lines = []
-    for i in range(rows):
+    for i in range(1, 1 + rows):
         lines.append(str(region_text(x_left, y_bottom - line_height * rows, width, line_height)))
     return lines
 

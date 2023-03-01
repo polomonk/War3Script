@@ -28,6 +28,7 @@ def parse_practice(practice: str) -> str:
 class Hero:
     def __init__(self, name: str = "", hero_type: int = 0):
         self.owner = "polomonk"
+        # self.owner = "istaker"
         self.name = name
         self.type = hero_type  # 0:物理, 1:攻击, 2:法师
         self.power = "0"
@@ -92,7 +93,10 @@ class Hero:
 instance = Hero()
 
 if __name__ == '__main__':
+    window = WindowsUtil.instance.get_war3_window()
+    if window is not None:
+        window.activate()
     while True:
-        instance.get_state()
+        print(instance.get_state())
         print(instance)
         time.sleep(1)

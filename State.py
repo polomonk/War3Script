@@ -28,7 +28,7 @@ class State(ABC):
 class InPlatformState(State):
     def __init__(self):
         super().__init__()
-        Log.i(str(time.time()) + "InPlatformState")
+        Log.i(time.strftime("%Y-%m-%d %H:%M:%S".format(time.localtime(), "  InPlatformState")))
 
     def exec(self):
         super(InPlatformState, self).exec()
@@ -38,7 +38,7 @@ class InPlatformState(State):
 class InRoomState(State):
     def __init__(self):
         super().__init__()
-        Log.i("InRoomState")
+        Log.i(time.strftime("%Y-%m-%d %H:%M:%S".format(time.localtime(), "  InRoomState")))
 
     def exec(self):
         super(InRoomState, self).exec()
@@ -48,12 +48,16 @@ class InRoomState(State):
 class InWar3State(State):
     def __init__(self):
         super().__init__()
-        Log.i("InWar3State")
+        Log.i(time.strftime("%Y-%m-%d %H:%M:%S".format(time.localtime(), "  InWar3State")))
 
     def exec(self):
         super(InWar3State, self).exec()
         self.strategy.in_war3()
 
+
+if __name__ == '__main__':
+    # 打印时间日期
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
 
 
