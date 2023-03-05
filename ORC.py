@@ -28,15 +28,16 @@ def region_text(left, top, width, height) -> list[type(str)]:
     # 反色
     # img = img.point(lambda p: 255 - p)
     img.save(ImageUtil.images_root + "temp\\test" + str(random.randint(1, 6)) + ".png")
-    text = pytesseract.image_to_string(img, lang="chi_sim", config="--psm 1") \
-        # .split("\n")
+    text = str(pytesseract.image_to_string(img, lang="chi_sim", config="--psm 1")).replace(" ", "")
+    if text == "":
+        return []
     Log.d(text)
-    return text
+    return list(text)
 
 
 def get_message(x_left: int, y_bottom: int, line_height: int, width=250, rows: int = 1) -> list[type(str)]:
-    Log.d("  x:" + str(x_left) + "  y:" + str(y_bottom - line_height * rows)
-          + "  width:" + str(width) + "  height:" + str(line_height * rows))
+    # Log.d("  x:" + str(x_left) + "  y:" + str(y_bottom - line_height * rows)
+    #       + "  width:" + str(width) + "  height:" + str(line_height * rows))
     lines = []
     for i in range(1, 1 + rows):
         lines.append(str(region_text(x_left, y_bottom - line_height * rows, width, line_height)))
@@ -45,22 +46,31 @@ def get_message(x_left: int, y_bottom: int, line_height: int, width=250, rows: i
 
 def get_window_message(window: BaseWindow, x_left: int, y_bottom: int, line_height: int, width=250, rows: int = 1) \
         -> list[type(str)]:
+    if window is None:
+        return []
     return get_message(window.left + x_left, window.top + y_bottom, line_height, width, rows)
 
 
 # war3 message in bottom(82, 582)  行高 23
 def get_system_message(rows: int = 1) -> list[type(str)]:
-    return get_window_message(WindowsUtil.instance.get_war3_window(), 82, 582, 23, rows)
+    return get_window_message(WindowsUtil.instance.get_war3_window(), 82, 582, 23, rows=rows)
 
 
 # player message in bottom(86, 634)  行高 21
 def get_player_message(rows: int = 1) -> list[type(str)]:
-    return get_window_message(WindowsUtil.instance.get_war3_window(), 86, 634, 21, rows)
+    return get_window_message(WindowsUtil.instance.get_war3_window(), 86, 634, 21, rows=rows)
 
 
 # hero message (928, 160)  行高 21
 def get_hero_message(rows: int = 4) -> list[type(str)]:
-    return get_window_message(WindowsUtil.instance.get_war3_window(), 928, 160, 25, width=340, rows=rows)
+    window = WindowsUtil.instance.get_war3_window()
+    if window is None:
+        return []
+    lines = []
+    for i in range(0, 4):
+        lines.append(region_text(window.left + 928, window.top + 160 + 25 * i, 340, 25).__str__())
+    return lines
+    # return get_window_message(WindowsUtil.instance.get_war3_window(), 928, 160, 25, width=340, rows=rows)
 
 
 if __name__ == '__main__':
@@ -70,6 +80,6 @@ if __name__ == '__main__':
     while True:
         # lines = region_text(1256, 439, 85-47, 685-658)
         # lines = region_text(570, 220, 250, 30)
-        lines = region_text(992, 109, 36, 21)
+        lines = get_system_message(3)
         print(lines)
         time.sleep(1)

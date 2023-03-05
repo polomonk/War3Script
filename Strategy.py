@@ -5,10 +5,14 @@ import difflib
 import pyautogui
 from pytesseract import pytesseract
 
+import ORC
 import WindowsUtil
 from Action import *
 from Action import ActionComponent
 import Hero
+
+game_failed = "游戏失败"
+game_warning = "警告:时空枢纽的剩余生命值"
 
 
 class Strategy(ABC):
@@ -23,7 +27,7 @@ class Strategy(ABC):
 
     def wait_to_start(self):  # 等待游戏开始
         ImageDisappearAction("noPerson") \
-            .set_next_action(AnyImageClickAction(["ready", "startGame"])) \
+            .set_next_action(AnyImageClickAction(["ready", "startGame"])).set_timeout_second(0) \
             .start()
 
     def set_model(self, model: str):
@@ -39,18 +43,15 @@ class Strategy(ABC):
         # 选择难度  1-5(500, 302 + 70*(n-1)) 6-10(740, 302 + 70*(n-1) # 难度图标(192 , 80)  (608, 294)
         x = 500 + 192 // 2 if self.difficulty <= 5 else 740 + 192 // 2
         y = 294 + (self.difficulty - 1) * 70
-        ImageClickAction(self.model + "Text").set_timeout_second(60).set_retry_interval(1).set_confidence(0.7) \
+        ImageClickAction(self.model + "Text").set_confidence(0.7) \
             .set_next_action(ClickAction()).set_before_second(1) \
             .set_next_action(ClickInsideWindowAction(WindowsUtil.instance.get_war3_window(), x, y)) \
             .start()
 
     def choose_hero(self):
-        window = WindowsUtil.instance.get_war3_window()
-        ClickBasedOnWindowCenterAction(window).set_before_second(1) \
-            .set_next_action(ClickBasedOnWindowCenterAction(window, 20)) \
-            .set_next_action(ClickBasedOnWindowCenterAction(window, 40)) \
-            .set_next_action(ClickBasedOnWindowCenterAction(window, 60)) \
-            .start()
+        ImageClickAction("heroBottom").set_after_second(0.5) \
+                .set_next_action(ImageClickAction("heroBottom")).set_timeout_second(0) \
+                .start()
         return True
 
     def init_war3window(self):
@@ -87,18 +88,13 @@ class Strategy(ABC):
     def meditation(self):  # 冥想
         window = WindowsUtil.instance.get_war3_window()
         window.activate()
-        # f7 -> move -> meditation
-        KeyAction("f7") \
-            .set_next_action(ClickInsideWindowAction(window, window.width // 2, (window.height // 2) - 100)) \
-            .set_button("RIGHT").set_after_second(0.05) \
-            .set_next_action(ImageClickAction("askForAdvice")) \
-            .start()
+        Hero.instance.meditation()
 
     def weapon_soul(self):
         # 器灵(631, 271), 物品栏第一行,第一列(942, 780)
         KeyAction("F2").set_next_action(ClickInsideWindowAction(WindowsUtil.instance.get_war3_window(), 631, 271)) \
+            .set_next_action(ClickBasedOnWindowCenterAction(WindowsUtil.instance.get_war3_window(), button="RIGHT")) \
             .set_next_action(ImageClickAction("weaponSoul", 0, 0)).set_confidence(0.7) \
-            .set_timeout_func(NoneAction().action) \
             .start()
 
 
@@ -123,17 +119,21 @@ class Strategy(ABC):
         pass
 
     def in_war3(self):
+        if WindowsUtil.instance.get_war3_window() is None:
+            time.sleep(1)
+            return
         self.init_war3window()
+        lines = ORC.get_system_message(4)
+        for line in lines:
+            if ORC.is_string_match(line[:len(game_failed)], game_failed):
+                self.exit_game()
 
 
-class HangUpStrategy(Strategy):
-    """
-    hang up strategy
-    """
-
+class DeviceSoulStrategy(Strategy):
     def __init__(self):
         super().__init__()
         self.needBackToBase = False
+        self.war3_inited = False
 
     def search_room(self):
         # 搜索房间. 相对窗口库左上角位置:搜索(360, 440), 搜索(360, 440)
@@ -158,7 +158,7 @@ class HangUpStrategy(Strategy):
         #     .set_next_action(InputAction(input_content="1")) \
         #     .set_next_action(ImageClickAction("create")) \
         #     .start()
-        ImageClickAction("createRoom").set_confidence(0.7).set_after_second(0.5) \
+        ImageClickAction("createRoom").set_confidence(0.7).set_after_second(1) \
             .set_next_action(ImageClickAction("roomPassword", 145)) \
             .set_next_action(InputAction("123")) \
             .set_next_action(ImageClickAction("create")) \
@@ -171,31 +171,46 @@ class HangUpStrategy(Strategy):
 
     def in_room(self):
         # self.wait_to_start()
+        ImageClickAction("sure").set_timeout_second(0.3).start()
         AnyImageClickAction(["startGame", "ready"]) \
             .start()
 
     def in_war3(self):
         # super(HangUpStrategy, self).in_war3()
-        if not Hero.instance.get_state() and not self.needBackToBase:   # 没有英雄属性界面说明还在加载界面
-            self.select_model_and_difficulty()
-            self.choose_hero()
-            self.meditation()
-            ImageClickAction("noticeBoard", 466, 32).set_timeout_second(0.5) \
-                .start()
-            self.share_sharing()
-            for i in range(15):
-                time.sleep(.05)
-                pyautogui.scroll(-1000)
-        # 等待15波怪物 (658, 47, 685, 85)
-        if ImageAppearAction("wave15").set_timeout_second(0.3).set_confidence(0.96).action():
-            self.needBackToBase = True
-        if self.needBackToBase:
-            self.weapon_soul()
-        # 军团(620, 50, 35, 20)
-        AnyImageClickAction(["return2platform"]) \
-            .set_retry_interval(1).set_timeout_second(.3) \
-            .start()
-        # self.exit_game()
+        while True:
+            if AnyImageClickAction(["return2platform"]).action():    # 退出游戏
+                break
+            if not self.war3_inited:
+                self.select_model_and_difficulty()
+            if not self.war3_inited:   # 进入了魔兽界面
+                if ImageAppearAction("setup").action():
+                    self.war3_inited = True
+                if ImageClickAction("heroBottom").action():    # 选择英雄界面
+                    self.choose_hero()
+                    self.meditation()
+                    ImageClickAction("noticeBoard", 466, 32).set_timeout_second(0.5) \
+                        .start()
+                    self.share_sharing()
+                    # 镜头拉倒最远
+                    for i in range(15):
+                        time.sleep(.05)
+                        pyautogui.scroll(-1000)
+            lines = ORC.get_system_message(4)
+            for line in lines:
+                if line is None or line == "":
+                    continue
+                if ORC.is_string_match(line[:len(game_warning)], game_warning):
+                    KeyAction("F2").set_after_second(10) \
+                        .set_next_action(FunctionAction(self.meditation)) \
+                        .start()
+            # 等待15波怪物 (658, 47, 685, 85)
+            # 回基地防守
+            if ImageAppearAction("wave15").set_confidence(0.96).action():
+                self.needBackToBase = True
+            if self.needBackToBase or ImageAppearAction("over").set_confidence(0.95).action():
+                self.weapon_soul()
+            # 军团(620, 50, 35, 20)
+            # self.exit_game()
 
 
 class CarryStrategy(Strategy):
@@ -221,8 +236,13 @@ class CarryStrategy(Strategy):
 
     def in_war3(self):
         super(CarryStrategy, self).in_war3()
-        self.carry()
         # self.exit_game()
+
+
+class HangUpStrategy(Strategy):
+    """
+    hang up strategy
+    """
 
     """
     springFestivalGift(635, 335), goods(520, 450), mysteryGift(720, 350)
@@ -232,10 +252,7 @@ class CarryStrategy(Strategy):
     """
 
     def main_line(self):
-        KeyAction("F3").start()
-        window_width, window_height = WindowsUtil.instance.get_war3_window().size
-        width = math.cos(math.pi / 6 * random.randint(0, 5))
-        height = math.sin(math.pi / 6 * random.randint(0, 3))
+        pass
 
     def carry(self):
         pass
@@ -250,5 +267,9 @@ if __name__ == '__main__':
     # strategy.in_room()
     # strategy.in_war3()
     # Hero.instance.get_state()
+    print(Hero.instance.get_state())
+    # strategy.weapon_soul()
+    ImageClickAction("heroBottom", clicks=2) \
+        .start()
 
 

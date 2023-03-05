@@ -79,7 +79,6 @@ class Instance(object):
         else:
             w = windows[0]
             for window in windows:
-                print("window:" + str(window))
                 if window.width < w.width:
                     w = window
         return w
@@ -89,6 +88,7 @@ instance = Instance()
 # # 获取活动窗口的标题
 if __name__ == "__main__":
     # print_all_windows()
-    window = pyautogui.getWindowsWithTitle("C:\\")[0]
-    window.activate()
-    ClickInsideWindowAction(window, 322, 404).start()
+    # window = pyautogui.getWindowsWithTitle("C:\\")[0]
+    # window.activate()
+    print(instance.get_platform_room_window())
+    print(instance.get_platform_window())

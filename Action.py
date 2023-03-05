@@ -20,7 +20,7 @@ class ActionComponent(ABC):
 
     """
 
-    def __init__(self, sleep_after_second=0.2, button="LEFT", move_duration=0.1, retry_interval=0.2):
+    def __init__(self, sleep_after_second=0, button="LEFT", move_duration=0.1, retry_interval=1):
         super().__init__()
         self.head: ActionComponent = self       # 头节点
         self.next: Optional[ActionComponent, None] = None   # 下一个节点
@@ -86,13 +86,13 @@ class ActionComponent(ABC):
 
     def exec(self):
         start_time = time.time()
-        time.sleep(self.sleep_before_second)
+        time.sleep(self.sleep_before_second)    # 执行前等待
         while not self.action():
             if time.time() - start_time > self.timeout_second:
-                self.timeout_processing()
+                self.timeout_processing()       # 超时处理
                 return
-            time.sleep(self.retry_interval)
-        time.sleep(self.sleep_after_second)
+            time.sleep(self.retry_interval)     # 重试间隔
+        time.sleep(self.sleep_after_second)     # 执行后等待
         if self.next is not None:
             self.next.exec()
 
@@ -110,8 +110,8 @@ class ClickAction(ActionComponent):  # 点击窗口位置行为
 
     """
 
-    def __init__(self, x: int = 0, y: int = 0):
-        super().__init__()
+    def __init__(self, x: int = 0, y: int = 0, button="LEFT"):
+        super().__init__(button=button)
         self.x = x
         self.y = y
 
@@ -146,8 +146,8 @@ class ClickInsideWindowAction(ClickAction):  # 点击窗口内部位置行为
 
 
 class ClickBasedOnWindowCenterAction(ClickAction):  # 相对窗口中心点击行为
-    def __init__(self, window: BaseWindow, x: int = 0, y: int = 0):
-        super().__init__(x, y)
+    def __init__(self, window: BaseWindow, x: int = 0, y: int = 0, button="LEFT"):
+        super().__init__(x, y, button=button)
         self.window = window
         if window is not None:
             center_x, center_y = WindowsUtil.get_window_center(window)
@@ -289,6 +289,8 @@ class RelativeLocationClickAction(ClickAction):  # 给定窗口的相对位置�
         return True
 
     def exec(self):
+        if self.window is None or not self.window.isActive:
+            self.window = None
         Log.d(str(self.__class__.__name__) + ": window:{}, x:{}, y:{}".format(self.window, self.x, self.y))
         super(RelativeLocationClickAction, self).exec()
 
@@ -334,12 +336,9 @@ class ImageAppearAction(ActionComponent):
         self.timeout = timeout
 
     def action(self) -> bool:
-        start_time = time.time()
-        while time.time() - start_time < self.timeout:
-            location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence)
-            if location is not None:
-                return True
-            time.sleep(self.retry_interval)
+        location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence)
+        if location is not None:
+            return True
         return False
 
     def exec(self):
@@ -356,13 +355,9 @@ class ImageDisappearAction(ActionComponent):
         self.timeout = timeout
 
     def action(self) -> bool:
-        start_time = time.time()
-        time.sleep(1)
-        while time.time() - start_time < self.timeout:
-            location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence)
-            if location is None:
-                return True
-            time.sleep(self.retry_interval)
+        location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence)
+        if location is None:
+            return True
         return False
 
     def exec(self):

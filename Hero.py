@@ -27,8 +27,8 @@ def parse_practice(practice: str) -> str:
 
 class Hero:
     def __init__(self, name: str = "", hero_type: int = 0):
-        self.owner = "polomonk"
-        # self.owner = "istaker"
+        # self.owner = "polomonk"
+        self.owner = "istaker"
         self.name = name
         self.type = hero_type  # 0:物理, 1:攻击, 2:法师
         self.power = "0"
@@ -43,17 +43,25 @@ class Hero:
                "  无尽之塔:" + str(self.tower_level) + "  属性修炼:" + self.practice + "  游戏状态:" + self.game_state
 
     def select_hero(self):
+        window = WindowsUtil.instance.get_war3_window()
+        if window is None:
+            return
         KeyAction("F1").set_after_second(0.01) \
             .set_next_action(KeyAction("F1")) \
             .start()
 
     def move(self, x, y):
         window = WindowsUtil.instance.get_war3_window()
+        if window is None:
+            return
         self.select_hero()
         ClickBasedOnWindowCenterAction(window, x, y).set_button("RIGHT") \
             .start()
 
     def dump(self, x, y, dumps=1):
+        window = WindowsUtil.instance.get_war3_window()
+        if window is None:
+            return
         window = WindowsUtil.instance.get_war3_window()
         center_x, center_y = WindowsUtil.get_window_center(window)
         x, y = min(center_x + x, window.width // 2 - 100), min(center_y + y, window.height // 2 - 100)  # 不超过窗口
@@ -63,13 +71,45 @@ class Hero:
             action.set_next_action(InputAction("d"))
         action.start()
 
+    def defendence(self):
+        window = WindowsUtil.instance.get_war3_window()
+        if window is None:
+            return
+        KeyAction("F2") \
+            .start()
+
+    def bursh_money(self):
+        window = WindowsUtil.instance.get_war3_window()
+        if window is None:
+            return
+        KeyAction("F3") \
+            .start()
+
+    def meditation(self):
+        window = WindowsUtil.instance.get_war3_window()
+        if window is None:
+            return
+        KeyAction("f7") \
+            .set_next_action(ClickInsideWindowAction(window, window.width // 2, (window.height // 2) - 100)) \
+            .set_button("RIGHT") \
+            .set_next_action(ImageClickAction("askForAdvice")).set_retry_interval(0.05) \
+            .start()
+
+    def main_line(self):
+        window = WindowsUtil.instance.get_war3_window()
+        if window is None:
+            return
+        # todo 增加主线功能
+        InputAction("c") \
+            .set_timeout_second(5).set_timeout_func(KeyAction("F2").action) \
+            .start()
+
     def get_state(self) -> bool:
         window = WindowsUtil.instance.get_war3_window()
         if window is None:
             return False
         for i in range(0, 4):
             line = ORC.region_text(window.left + 928, window.top + 160 + 25 * i, 340, 25).__str__()
-            Log.d(line)
             # 0.玩家(，)战斗力, 1.主线， 2.吞噬装备， 3.无尽之塔， 4.属性修炼, 5.游戏状态
             if ORC.is_string_match(self.owner, line[:len(self.owner) + 1]):
                 info = line.split()
@@ -98,5 +138,4 @@ if __name__ == '__main__':
         window.activate()
     while True:
         print(instance.get_state())
-        print(instance)
         time.sleep(1)
