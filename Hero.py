@@ -1,9 +1,9 @@
-import ORC
+import OCR
 import WindowsUtil
 from Action import *
 
 
-# 从ORC识别出来的字符串中解析
+# 从OCR识别出来的字符串中解析
 def parse_main_line(main_line: str) -> str:
     if main_line.isdigit():  # 主线
         return main_line[0] + "-" + main_line[1:]
@@ -27,8 +27,8 @@ def parse_practice(practice: str) -> str:
 
 class Hero:
     def __init__(self, name: str = "", hero_type: int = 0):
-        # self.owner = "polomonk"
-        self.owner = "istaker"
+        self.owner = "polomonk"
+        # self.owner = "MistakerOB"
         self.name = name
         self.type = hero_type  # 0:物理, 1:攻击, 2:法师
         self.power = "0"
@@ -109,9 +109,9 @@ class Hero:
         if window is None:
             return False
         for i in range(0, 4):
-            line = ORC.region_text(window.left + 928, window.top + 160 + 25 * i, 340, 25).__str__()
+            line = OCR.region_text(window.left + 928, window.top + 160 + 25 * i, 340, 25).__str__()
             # 0.玩家(，)战斗力, 1.主线， 2.吞噬装备， 3.无尽之塔， 4.属性修炼, 5.游戏状态
-            if ORC.is_string_match(self.owner, line[:len(self.owner) + 1]):
+            if OCR.is_string_match(self.owner, line[:len(self.owner) + 1]):
                 info = line.split()
                 if len(info) == 6:
                     self.power = info[0]

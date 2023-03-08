@@ -17,13 +17,13 @@ class ActionComponent(ABC):
     Behavior abstract class
     action(self) must implement
     timeout_processing(self) should implement
-
     """
 
     def __init__(self, sleep_after_second=0, button="LEFT", move_duration=0.1, retry_interval=1):
         super().__init__()
-        self.head: ActionComponent = self       # 头节点
-        self.next: Optional[ActionComponent, None] = None   # 下一个节点
+        self.success_func: Optional[Callable] = None
+        self.head: ActionComponent = self  # 头节点
+        self.next: Optional[ActionComponent, None] = None  # 下一个节点
         self.sleep_before_second: int = 0  # 执行前等待时间
         self.sleep_after_second: float = sleep_after_second  # 执行后等待时间
         self.button = button  # 鼠标按键
@@ -65,11 +65,19 @@ class ActionComponent(ABC):
         self.confidence = confidence
         return self
 
+    def set_success_func(self, func: Callable) -> "ActionComponent":
+        self.success_func = func
+        return self
+
+    def on_success(self):
+        if self.success_func is not None:
+            self.success_func()
+
     def set_timeout_func(self, func: Optional[Callable]) -> "ActionComponent":
         self.timeout_func = func
         return self
 
-    def timeout_processing(self):
+    def on_timeout(self):
         Log.i("timeout")
         if self.timeout_func is not None:
             self.timeout_func()
@@ -86,13 +94,15 @@ class ActionComponent(ABC):
 
     def exec(self):
         start_time = time.time()
-        time.sleep(self.sleep_before_second)    # 执行前等待
+        time.sleep(self.sleep_before_second)  # 执行前等待
         while not self.action():
             if time.time() - start_time > self.timeout_second:
-                self.timeout_processing()       # 超时处理
-                return
-            time.sleep(self.retry_interval)     # 重试间隔
-        time.sleep(self.sleep_after_second)     # 执行后等待
+                self.on_timeout()  # 超时处理
+                break
+            time.sleep(self.retry_interval)  # 重试间隔
+        if time.time() - start_time <= self.timeout_second:
+            self.on_success()
+        time.sleep(self.sleep_after_second)  # 执行后等待
         if self.next is not None:
             self.next.exec()
 
@@ -104,10 +114,10 @@ class NoneAction(ActionComponent):  # 空行为
     def action(self) -> bool:
         return True
 
-class ClickAction(ActionComponent):  # 点击窗口位置行为
+
+class ClickAction(ActionComponent):  # 点击行为
     """
     Click behavior abstract class
-
     """
 
     def __init__(self, x: int = 0, y: int = 0, button="LEFT"):
@@ -129,17 +139,18 @@ class ClickInsideWindowAction(ClickAction):  # 点击窗口内部位置行为
     def __init__(self, window: BaseWindow, x: int = 0, y: int = 0):
         super().__init__(x, y)
         self.window = window
-        if self.window is not None:
-            self.x = window.left + x
-            self.y = window.top + y
 
     def action(self) -> bool:
+        if self.window is None or self.window.isMinimized or not self.window.isActive:
+            return False
+        self.x += self.window.left
+        self.y += self.window.top
         pyautogui.moveTo(self.x, self.y, duration=self.move_duration)
         pyautogui.click(button=self.button)
         return True
 
     def exec(self):
-        if self.window is None:
+        if self.window is None or self.window.isMinimized or not self.window.isActive:
             self.window = None
         Log.d(str(self.__class__.__name__) + ": window:{}, x:{}, y:{}".format(self.window, self.x, self.y))
         super(ClickInsideWindowAction, self).exec()
@@ -149,28 +160,31 @@ class ClickBasedOnWindowCenterAction(ClickAction):  # 相对窗口中心点击�
     def __init__(self, window: BaseWindow, x: int = 0, y: int = 0, button="LEFT"):
         super().__init__(x, y, button=button)
         self.window = window
-        if window is not None:
-            center_x, center_y = WindowsUtil.get_window_center(window)
-            self.x = center_x + x
-            self.y = center_y + y
 
     def action(self) -> bool:
+        if self.window is None or self.window.isMinimized or self.window.isMinimized:
+            return False
+        center_x, center_y = WindowsUtil.get_window_center(self.window)
+        self.x += center_x
+        self.y += center_y
         pyautogui.moveTo(self.x, self.y, duration=self.move_duration)
         pyautogui.click(button=self.button)
         return True
 
     def exec(self):
-        if self.window is None or not self.window.isActive:
+        if self.window is None or self.window.isMinimized or self.window.isMinimized:
             self.window = None
         Log.d(str(self.__class__.__name__) + ": window:{}, x:{}, y:{}".format(self.window, self.x, self.y))
         super(ClickBasedOnWindowCenterAction, self).exec()
 
 
 class ImageClickAction(ClickAction):  # 点击图片行为
-    def __init__(self, image: str, x: int = 0, y: int = 0, clicks: int = 1):
+    def __init__(self, image: str, x: int = 0, y: int = 0, clicks: int = 1,
+                 region=(0, 0, WindowsUtil.instance.screen_width, WindowsUtil.instance.screen_height)):
         super().__init__(x, y)
         self.image = ImageUtil.get_file(image)
         self.clicks = clicks
+        self.region = region
         if self.image is None:
             print(image + " not find")
         self.width, self.height = Image.open(self.image).size
@@ -184,7 +198,8 @@ class ImageClickAction(ClickAction):  # 点击图片行为
             self.y = y - self.height // 2
 
     def action(self) -> bool:
-        location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence)
+        pyautogui.size()
+        location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence, region=self.region)
         if location is not None:
             pyautogui.moveTo(location.x + self.x, location.y + self.y, self.move_duration)
             pyautogui.click(interval=0.1, duration=0.1, clicks=self.clicks, button=self.button)
@@ -196,18 +211,22 @@ class ImageClickAction(ClickAction):  # 点击图片行为
               format(self.image.split("\\")[-1], self.x, self.y))
         super(ImageClickAction, self).exec()
 
+    def set_region(self, region):
+        self.region = region
+
 
 class AnyImageClickAction(ActionComponent):  # 任意图片点击行为
-    def __init__(self, images: list):
+    def __init__(self, images: list, region=(0, 0, WindowsUtil.instance.screen_width, WindowsUtil.instance.screen_height)):
         super().__init__()
         self.images = images
+        self.region = region
 
     def action(self) -> bool:
         for image in self.images:
             image_file = ImageUtil.get_file(image)
             if not os.path.exists(image_file):
                 continue
-            location = pyautogui.locateCenterOnScreen(image_file, confidence=self.confidence)
+            location = pyautogui.locateCenterOnScreen(image_file, confidence=self.confidence, region=self.region)
             if location is not None:
                 pyautogui.moveTo(location.x, location.y, self.move_duration)
                 pyautogui.click(location.x, location.y, clicks=1, interval=0.1, duration=0.1, button=self.button)
@@ -218,24 +237,8 @@ class AnyImageClickAction(ActionComponent):  # 任意图片点击行为
         Log.d(str(self.__class__.__name__) + ": images:{}".format(self.images))
         super(AnyImageClickAction, self).exec()
 
-
-class PriorImageClickActionComponent(ActionComponent):  # 优先级图片点击行为
-    def __init__(self, images: list):
-        super().__init__()
-        self.images = images
-
-    def action(self) -> bool:
-        for image in self.images:
-            location = pyautogui.locateCenterOnScreen(image, confidence=0.9)
-            if location is not None:
-                pyautogui.moveTo(location.x, location.y, self.move_duration)
-                pyautogui.click(location.x, location.y, clicks=1, interval=0.1, duration=0.1, button="LEFT")
-                return True
-        return False
-
-    def exec(self):
-        Log.d(str(self.__class__.__name__) + ": images:{}".format(self.images))
-        super(PriorImageClickActionComponent, self).exec()
+    def set_region(self, region):
+        self.region = region
 
 
 class MoveAction(ActionComponent):  # 给定窗口的相对位置点击行为
@@ -257,42 +260,21 @@ class MoveInsideWindowAction(MoveAction):
     def __init__(self, window: BaseWindow, x=0, y=0):
         super().__init__(x, y)
         self.window = window
-        if window is not None:
-            center_x, center_y = WindowsUtil.get_window_center(window)
-            self.x = center_x + x
-            self.y = center_y + y
 
     def action(self) -> bool:
-        if self.window is not None:
-            pyautogui.moveTo(self.x, self.y, self.move_duration)
-            return True
-        return False
-
-    def exec(self):
-        if self.window is None or not self.window.isActive:
-            self.window = None
-        Log.d(str(self.__class__.__name__) + ": window:{}, x:{}, y:{}".format(self.window, self.x, self.y))
-        super(MoveInsideWindowAction, self).exec()
-
-
-class RelativeLocationClickAction(ClickAction):  # 给定窗口的相对位置点击行为
-    def __init__(self, window: BaseWindow, x, y):
-        super().__init__()
-        self.window = window
-        if window is not None:
-            self.x = window.top + window.width * x
-            self.y = window.left + window.height * y
-
-    def action(self) -> bool:
+        if self.window is None or self.window.isMinimized or self.window.isMinimized:
+            return False
+        center_x, center_y = WindowsUtil.get_window_center(self.window)
+        self.x += center_x
+        self.y += center_y
         pyautogui.moveTo(self.x, self.y, self.move_duration)
-        pyautogui.click(self.x, self.y)
         return True
 
     def exec(self):
-        if self.window is None or not self.window.isActive:
+        if self.window is None or self.window.isMinimized or self.window.isMinimized:
             self.window = None
         Log.d(str(self.__class__.__name__) + ": window:{}, x:{}, y:{}".format(self.window, self.x, self.y))
-        super(RelativeLocationClickAction, self).exec()
+        super(MoveInsideWindowAction, self).exec()
 
 
 class InputAction(ActionComponent):
@@ -330,13 +312,15 @@ class ImageAppearAction(ActionComponent):
     """
     图片出现行为
     """
-    def __init__(self, image: str, timeout: int = 60):
+
+    def __init__(self, image: str, timeout: int = 60, region=(0, 0, WindowsUtil.instance.screen_width, WindowsUtil.instance.screen_height)):
         super().__init__()
         self.image = ImageUtil.get_file(image)
+        self.region = region
         self.timeout = timeout
 
     def action(self) -> bool:
-        location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence)
+        location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence, region=self.region)
         if location is not None:
             return True
         return False
@@ -345,17 +329,23 @@ class ImageAppearAction(ActionComponent):
         Log.d(str(self.__class__.__name__) + ": image:{}, timeout:{}".format(self.image, self.timeout))
         super(ImageAppearAction, self).exec()
 
+    def set_region(self, region):
+        self.region = region
+
+
 class ImageDisappearAction(ActionComponent):
     """
     图片消失行为
     """
-    def __init__(self, image: str, timeout: int = 60 * 10):
+
+    def __init__(self, image: str, timeout: int = 60 * 10, region=(0, 0, WindowsUtil.instance.screen_width, WindowsUtil.instance.screen_height)):
         super().__init__()
         self.image = ImageUtil.get_file(image)
+        self.region = region
         self.timeout = timeout
 
     def action(self) -> bool:
-        location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence)
+        location = pyautogui.locateCenterOnScreen(self.image, confidence=self.confidence, region=self.region)
         if location is None:
             return True
         return False
@@ -364,26 +354,32 @@ class ImageDisappearAction(ActionComponent):
         Log.d(str(self.__class__.__name__) + ": image:{}, timeout:{}".format(self.image, self.timeout))
         super(ImageDisappearAction, self).exec()
 
+    def set_region(self, region):
+        self.region = region
+
 
 class RegionSelectionInsideWindowAction(ActionComponent):
-    def __init__(self, window: BaseWindow, x, y, w, h):
+    def __init__(self, window: BaseWindow, x, y, w=50, h=50):
         super().__init__()
-        self.window = window
-        if window is not None:
-            self.x = self.window.left + x - w // 2
-            self.y = self.window.top + y - h // 2
-            self.w = w
-            self.h = h
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.window: BaseWindow = window
+        if self.window is None or self.window.isMinimized or self.window.isMinimized:
+            return
 
     def action(self) -> bool:
-        if self.window is None:
+        if self.window is None or self.window.isMinimized or self.window.isMinimized:
             return False
+        self.x += self.window.left - self.w // 2
+        self.y += self.window.top - self.h // 2
         pyautogui.moveTo(self.x, self.y, self.move_duration)
         pyautogui.dragRel(self.w, self.h, self.move_duration, button="LEFT")
         return True
 
     def exec(self):
-        if self.window is None or not self.window.isActive:
+        if self.window is None or self.window.isMinimized or self.window.isMinimized:
             self.window = None
         Log.d(str(self.__class__.__name__) + ": window:{}, x:{}, y:{}, w:{}, h:{}"
               .format(self.window, self.x, self.y, self.w, self.h))
@@ -404,10 +400,8 @@ class FunctionAction(ActionComponent):
 
 
 if __name__ == "__main__":
-    # WindowsUtil.instance.get_war3_window().activate()
-    time.sleep(1)
-    # ImageClickAction("5bo").start()
-
-    AnyImageClickAction(["return2platform"]) \
-        .set_retry_interval(1).set_timeout_second(.3) \
-        .start()
+    window = WindowsUtil.instance.get_war3_window()
+    if window is not None or not window.isMinimized:
+        window.activate()
+    print(window.isMinimized)
+    MoveInsideWindowAction(WindowsUtil.instance.get_war3_window(), 1, 1).start()

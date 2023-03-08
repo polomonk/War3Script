@@ -1,7 +1,11 @@
 # -*- coding: UTF-8 -*-
 import os
+from typing import Optional
 
-from Action import *
+import pyautogui
+from pygetwindow import BaseWindow
+
+import Log
 
 
 # 打印所有活动窗口
@@ -45,8 +49,9 @@ class Instance(object):
     def __init__(self):
         self.war3_window: Optional[BaseWindow] = None
         self.platform_window: Optional[BaseWindow] = None
+        self.screen_width, self.screen_height = pyautogui.size()
 
-    def get_war3_window(self):
+    def get_war3_window(self) -> Optional[BaseWindow]:
         if self.war3_window is None or not self.war3_window.isActive:
             windows = pyautogui.getWindowsWithTitle(war3_window_title)
             if len(windows) == 0:
@@ -56,7 +61,7 @@ class Instance(object):
             self.war3_window = windows[0]
         return self.war3_window
 
-    def get_platform_window(self):
+    def get_platform_window(self) -> Optional[BaseWindow]:
         if self.platform_window is None:
             windows = pyautogui.getWindowsWithTitle(platform_window_title)
             if len(windows) == 0:
@@ -71,7 +76,7 @@ class Instance(object):
             self.platform_window = w
         return self.platform_window
 
-    def get_platform_room_window(self):
+    def get_platform_room_window(self) -> Optional[BaseWindow]:
         windows = pyautogui.getWindowsWithTitle(platform_window_title)
         if len(windows) < 2:
             Log.w("not get platform room window")
@@ -91,4 +96,4 @@ if __name__ == "__main__":
     # window = pyautogui.getWindowsWithTitle("C:\\")[0]
     # window.activate()
     print(instance.get_platform_room_window())
-    print(instance.get_platform_window())
+    # print(instance.get_platform_window())

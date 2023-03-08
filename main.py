@@ -1,5 +1,5 @@
 from State import *
-from Strategy import HangUpStrategy, CarryStrategy, DeviceSoulStrategy
+from Strategy import HangUpStrategy, CarryStrategy, WeaponSoulStrategy
 
 
 # 创建房间 -> 等待开始 -> 选英雄->f7->移动到冥想位置->冥想->结束->关闭魔兽->准备
@@ -31,7 +31,7 @@ def platform_restore():
 
 def main():
     state = init_state()
-    strategy = DeviceSoulStrategy()
+    strategy = WeaponSoulStrategy()
     strategy.set_model("nModel").set_difficulty(1)  # 军团降临, 难度一
     state.set_strategy(strategy)
     state.exec()
