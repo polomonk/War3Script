@@ -111,7 +111,7 @@ class Hero:
         for i in range(0, 4):
             line = OCR.region_text(window.left + 928, window.top + 160 + 25 * i, 340, 25).__str__()
             # 0.玩家(，)战斗力, 1.主线， 2.吞噬装备， 3.无尽之塔， 4.属性修炼, 5.游戏状态
-            if OCR.is_string_match(self.owner, line[:len(self.owner) + 1]):
+            if OCR.is_text_match(self.owner, line[:len(self.owner) + 1]):
                 info = line.split()
                 if len(info) == 6:
                     self.power = info[0]

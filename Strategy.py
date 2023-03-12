@@ -12,7 +12,7 @@ from Action import ActionComponent
 import Hero
 
 game_failed = "游戏失败"
-game_warning = "警告:时空枢纽的剩余生命值"
+attack_warning = "警告:时空枢纽的剩余生命值"
 
 
 class Strategy(ABC):
@@ -72,7 +72,7 @@ class Strategy(ABC):
             .set_next_action(ImageClickAction("teamSharing", 150, 15)).set_timeout_second(0).set_confidence(0.95) \
             .set_next_action(ImageClickAction("teamSharing", 150, 15)).set_timeout_second(0).set_confidence(0.95) \
             .set_next_action(ImageClickAction("teamSharing", 150, 15)).set_timeout_second(0).set_confidence(0.95) \
-            .set_next_action(ImageClickAction("accept")).set_timeout_second(3) \
+            .set_next_action(ImageClickAction("accept")).set_confidence(0.8).set_timeout_second(1) \
             .set_next_action(KeyAction("Esc")).start()
 
     def transformation(self):
@@ -86,8 +86,9 @@ class Strategy(ABC):
 
     def meditation(self):  # 冥想
         window = WindowsUtil.instance.get_war3_window()
-        window.activate()
-        Hero.instance.meditation()
+        if window is not None and not window.isMinimized:
+            window.activate()
+            Hero.instance.meditation()
 
     def weapon_soul(self):
         def weapon_soul_opened():
@@ -132,10 +133,6 @@ class Strategy(ABC):
             time.sleep(1)
             return
         self.init_war3window()
-        lines = OCR.get_system_message(4)
-        for line in lines:
-            if OCR.is_string_match(line[:len(game_failed)], game_failed):
-                self.exit_game()
 
 
 class WeaponSoulStrategy(Strategy):
@@ -183,44 +180,35 @@ class WeaponSoulStrategy(Strategy):
                     self.choose_hero()
                     ImageClickAction("noticeBoard", 466, 32) \
                         .start()
+                    ImageClickAction("weaponPassiveSkills").set_confidence(0.7).action()
                     self.meditation()
                     self.share_sharing()
                     # 镜头拉倒最远
                     for i in range(15):
                         time.sleep(.05)
                         pyautogui.scroll(-1000)
-            lines = OCR.get_system_message(4)
-            for line in lines:
-                if line is None or line == "":
-                    continue
-                if OCR.is_string_match(line[:len(game_warning)], game_warning):
-                    KeyAction("F2").start()
-                elif OCR.is_string_match(line[:len(game_failed)], game_failed):
-                    self.exit_game()
-            # 等待15波怪物 (658, 47, 685, 85)
-            # 回基地防守
+            # lines = OCR.get_system_message(4)
+            # for line in lines:
+            #     if line is None or line == "":
+            #         continue
+            #     if OCR.is_text_left_match(line, attack_warning):
+            #         KeyAction("F2").start()
+            #     elif OCR.is_text_left_match(line, game_failed):
+            #         self.exit_game()
+            #     elif self.opened_weapon_soul:
+            #         expected = "【项灵图鉴]玩家<" + Hero.instance.name + ">获得了一个品灵图监"
+            #         if OCR.is_text_left_match(line, expected):
+            #             self.exit_game()
+            #             return
+            # 等待15波怪物 (658, 47, 685, 85) 回基地防守
             if ImageAppearAction("wave15").set_confidence(0.96).action():
+                window = WindowsUtil.instance.get_war3_window()
+                if window is not None and not window.isMinimized:
+                    window.activate()
                 self.needBackToBase = True
                 KeyAction("F2").start()
             if not self.opened_weapon_soul and ImageAppearAction("over").set_confidence(0.95).action():
                 self.weapon_soul()
-            if self.opened_weapon_soul:
-                lines = OCR.get_system_message(2)
-                for line in lines:
-                    if line is None or line == "":
-                        continue
-                    expected = "【项灵图鉴]玩家<" + Hero.instance.name + ">获得了一个品灵图监"
-                    min_len = min(len(line), len(expected))
-                    if OCR.is_string_match(line[:min_len], expected[:min_len]):
-                        self.exit_game()
-                        return
-                # lines = OCR.get_weapon_soul_message(1)
-                # for line in lines:
-                #     if line is None or line == "":
-                #         continue
-                #     if OCR.is_string_match(line, "【项灵图鉴]玩家<" + Hero.instance.name + ">获得了一个品灵图监"):
-                #         self.exit_game()
-                #         return
 
                 # 军团(620, 50, 35, 20)
             time.sleep(5)
@@ -278,4 +266,13 @@ if __name__ == '__main__':
     # strategy.in_room()
     # strategy.in_war3()
     # Hero.instance.get_state()
-    strategy.weapon_soul()
+    while True:
+        lines = OCR.get_system_message(4)
+        for line in lines:
+            if line is None or line == "":
+                continue
+            if OCR.is_text_left_match(line, attack_warning):
+                pass
+            elif OCR.is_text_left_match(line, game_failed):
+                pass
+        time.sleep(1)

@@ -12,10 +12,17 @@ import Log
 import WindowsUtil
 
 
-def is_string_match(string1, string2) -> bool:
+def is_text_match(string1, string2) -> bool:
     result = difflib.SequenceMatcher(None, string1, string2).quick_ratio()
-    # Log.i(string1 + " : " + string2 + "\rconfidence:" + str(result))
+    if string1 == "" or string2 == "":
+        return False
+    Log.i(string1 + " : " + string2 + "\tconfidence:" + str(result))
     return result > 0.5
+
+
+def is_text_left_match(string1, string2) -> bool:
+    match_length = min(len(string1), len(string2))
+    return is_text_match(string1[:match_length], string2[:match_length])
 
 
 def region_text(left, top, width, height) -> list[type(str)]:
@@ -54,7 +61,7 @@ def get_window_message(window: BaseWindow, x_left: int, y_bottom: int, line_heig
 
 # war3 message in bottom(82, 582)  行高 23
 def get_system_message(rows: int = 1) -> list[type(str)]:
-    return get_window_message(WindowsUtil.instance.get_war3_window(), 82, 582, 23, rows=rows)
+    return get_window_message(WindowsUtil.instance.get_war3_window(), 81, 584, 23, rows=rows)
 
 
 # player message in bottom(86, 634)  行高 21
@@ -80,10 +87,8 @@ def get_weapon_soul_message(rows: int = 1) -> list[type(str)]:
 if __name__ == '__main__':
     import time
 
-    # 722, 694
     while True:
-        # lines = region_text(1256, 439, 85-47, 685-658)
-        lines = region_text(464, 429, 350, 26)
+        lines = region_text(362, 683-23, 350, 23)
         # lines = pytesseract.image_to_string(PIL.Image.open(r"D:\Document\py\War3Script\images\temp\test5.png"), lang="chi_sim", config="--psm 1")
-        print("lines:"+str(lines))
+        # print("lines:"+str(lines))
         time.sleep(1)

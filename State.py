@@ -38,7 +38,7 @@ class InPlatformState(State):
     def exec(self):
         super(InPlatformState, self).exec()
         window = WindowsUtil.instance.get_platform_window()
-        if window is not None:
+        if window is not None and not window.isMinimized:
             window.activate()
             close_kk_wall()
         self.strategy.in_platform()
@@ -52,7 +52,7 @@ class InRoomState(State):
     def exec(self):
         super(InRoomState, self).exec()
         window = WindowsUtil.instance.get_platform_room_window()
-        if window is not None:
+        if window is not None and not window.isMinimized:
             window.activate()
             close_kk_wall()
         self.strategy.in_room()
@@ -65,7 +65,7 @@ class InWar3State(State):
 
     def exec(self):
         window = WindowsUtil.instance.get_war3_window()
-        if window is not None:
+        if window is not None and not window.isMinimized:
             window.activate()
         super(InWar3State, self).exec()
         self.strategy.in_war3()

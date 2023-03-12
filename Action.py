@@ -19,7 +19,7 @@ class ActionComponent(ABC):
     timeout_processing(self) should implement
     """
 
-    def __init__(self, sleep_after_second=0, button="LEFT", move_duration=0.1, retry_interval=1):
+    def __init__(self, sleep_after_second=0, button="LEFT", move_duration=0.1, retry_interval=0.5):
         super().__init__()
         self.success_func: Optional[Callable] = None
         self.head: ActionComponent = self  # 头节点
