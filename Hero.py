@@ -37,67 +37,78 @@ class Hero:
         self.tower_level = 0
         self.practice = "0-0"
         self.game_state = "正在游戏"
+        self.app_window = None
 
     def __str__(self):
         return self.owner + "  战力:" + self.power + "  主线:" + self.main_line + "  吞噬红装:" + self.red_equip + \
                "  无尽之塔:" + str(self.tower_level) + "  属性修炼:" + self.practice + "  游戏状态:" + self.game_state
 
-    def select_hero(self):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+    @property
+    def is_window_available(self):
+        self.app_window = WindowsUtil.instance.get_war3_window()
+        return self.app_window is not None and not self.app_window.isMinimized
+
+    def focus_hero(self):
+        if not self.is_window_available:
             return
         KeyAction("F1").set_after_second(0.01) \
             .set_next_action(KeyAction("F1")) \
             .start()
 
     def move(self, x, y):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+        if not self.is_window_available:
             return
-        self.select_hero()
-        ClickBasedOnWindowCenterAction(window, x, y).set_button("RIGHT") \
+        self.focus_hero()
+        CenterClickWindowAction(self.app_window, x, y).set_button("RIGHT") \
             .start()
 
-    def dump(self, x, y, dumps=1):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+    def jump(self, x, y, dumps=1):
+        if not self.is_window_available:
             return
-        window = WindowsUtil.instance.get_war3_window()
-        center_x, center_y = WindowsUtil.get_window_center(window)
-        x, y = min(center_x + x, window.width // 2 - 100), min(center_y + y, window.height // 2 - 100)  # 不超过窗口
-        self.select_hero()
-        action = MoveInsideWindowAction(window, x, y)
+        self.focus_hero()
+        x = min(window.width // 2, x)
+        y = min(window.height // 2, y)
+        action = CenterMoveWindowAction(window, x, y)
         for i in range(dumps):
-            action.set_next_action(InputAction("d"))
+            action = action.set_next_action(InputAction("d"))
         action.start()
 
-    def defendence(self):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+    def jump_to_left(self, dumps=1):
+        self.jump(WindowsUtil.screen_width, 0, dumps)
+
+    def jump_to_right(self, dumps=1):
+        self.jump(-WindowsUtil.screen_width, 0, dumps)
+
+    def jump_to_top(self, dumps=1):
+        self.jump(0, -WindowsUtil.screen_height, dumps)
+
+    def jump_to_bottom(self, dumps=1):
+        self.jump(0, WindowsUtil.screen_height, dumps)
+
+    def back_to_base(self):
+        if not self.is_window_available:
             return
         KeyAction("F2") \
             .start()
 
-    def bursh_money(self):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+    def back_to_training_room(self):
+        if self.is_window_available:
             return
         KeyAction("F3") \
             .start()
 
     def meditation(self):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+        if not self.is_window_available:
             return
+        app_window = WindowsUtil.instance.get_war3_window()
         KeyAction("f7") \
-            .set_next_action(ClickInsideWindowAction(window, window.width // 2, (window.height // 2) - 100)) \
+            .set_next_action(ClickWindowAction(app_window, app_window.width // 2, (app_window.height // 2) - 100)) \
             .set_button("RIGHT") \
             .set_next_action(ImageClickAction("askForAdvice")).set_retry_interval(0.05) \
             .start()
 
     def main_line(self):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+        if not self.is_window_available:
             return
         # todo 增加主线功能
         InputAction("c") \
@@ -105,8 +116,7 @@ class Hero:
             .start()
 
     def get_state(self) -> bool:
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+        if not self.is_window_available:
             return False
         for i in range(0, 4):
             line = OCR.region_text(window.left + 928, window.top + 160 + 25 * i, 340, 25).__str__()
@@ -136,6 +146,7 @@ if __name__ == '__main__':
     window = WindowsUtil.instance.get_war3_window()
     if window is not None:
         window.activate()
-    while True:
-        print(instance.get_state())
-        time.sleep(1)
+        instance.jumpToLeft()
+    # while True:
+        # print(instance.get_state())
+        # time.sleep(1)

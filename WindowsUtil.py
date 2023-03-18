@@ -34,23 +34,18 @@ def open_platform():
     pass
 
 
-def get_window_center(window: BaseWindow):
-    if window is None:
-        return 0, 0
-    return window.left + window.width // 2, window.top + window.height // 2
-
-
 platform_window_title = "UP对战平台"
 war3_window_title = "Warcraft III"
 doc_window_title = "网易有道词典"
+screen_width, screen_height = pyautogui.size()
 
 
 class Instance(object):
     def __init__(self):
         self.war3_window: Optional[BaseWindow] = None
         self.platform_window: Optional[BaseWindow] = None
-        self.screen_width, self.screen_height = pyautogui.size()
 
+    # size(1280, 960)   size(1440, 1080)
     def get_war3_window(self) -> Optional[BaseWindow]:
         if self.war3_window is None or not self.war3_window.isActive:
             windows = pyautogui.getWindowsWithTitle(war3_window_title)

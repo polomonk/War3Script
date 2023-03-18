@@ -1,7 +1,6 @@
 import sys
 import time
 from abc import ABC, abstractmethod
-import WindowsUtil
 from Action import *
 from Strategy import Strategy
 
@@ -33,13 +32,13 @@ class State(ABC):
 class InPlatformState(State):
     def __init__(self):
         super().__init__()
-        Log.i(time.strftime("%Y-%m-%d %H:%M:%S".format(time.localtime()) + "  InPlatformState"))
+        Log.i("InPlatformState")
 
     def exec(self):
         super(InPlatformState, self).exec()
-        window = WindowsUtil.instance.get_platform_window()
-        if window is not None and not window.isMinimized:
-            window.activate()
+        app_window = WindowsUtil.instance.get_platform_window()
+        if app_window is not None and not app_window.isMinimized:
+            app_window.activate()
             close_kk_wall()
         self.strategy.in_platform()
 
@@ -47,13 +46,13 @@ class InPlatformState(State):
 class InRoomState(State):
     def __init__(self):
         super().__init__()
-        Log.i(time.strftime("%Y-%m-%d %H:%M:%S".format(time.localtime()) + "  InRoomState"))
+        Log.i("InRoomState")
 
     def exec(self):
         super(InRoomState, self).exec()
-        window = WindowsUtil.instance.get_platform_room_window()
-        if window is not None and not window.isMinimized:
-            window.activate()
+        app_window = WindowsUtil.instance.get_platform_room_window()
+        if app_window is not None and not app_window.isMinimized:
+            app_window.activate()
             close_kk_wall()
         self.strategy.in_room()
 
@@ -61,12 +60,12 @@ class InRoomState(State):
 class InWar3State(State):
     def __init__(self):
         super().__init__()
-        Log.i(time.strftime("%Y-%m-%d %H:%M:%S".format(time.localtime()) + "  InWar3State"))
+        Log.i("InWar3State")
 
     def exec(self):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is not None and not window.isMinimized:
-            window.activate()
+        app_window = WindowsUtil.instance.get_war3_window()
+        if app_window is not None and not app_window.isMinimized:
+            app_window.activate()
         super(InWar3State, self).exec()
         self.strategy.in_war3()
 

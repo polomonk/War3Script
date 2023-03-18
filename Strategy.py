@@ -22,6 +22,11 @@ class Strategy(ABC):
         self.difficulty = 1
         self.opened_weapon_soul = False
 
+    @property
+    def war3_window_available(self):
+        app_window = WindowsUtil.instance.get_war3_window()
+        return app_window is not None and not app_window.isMinimized
+
     @abstractmethod
     def create_room(self):
         pass
@@ -45,7 +50,7 @@ class Strategy(ABC):
         x = 500 + 192 // 2 if self.difficulty <= 5 else 740 + 192 // 2
         y = 294 + (self.difficulty - 1) * 70
         ImageClickAction(self.model + "Text").set_confidence(0.7).set_after_second(1) \
-            .set_next_action(ClickInsideWindowAction(WindowsUtil.instance.get_war3_window(), x, y)) \
+            .set_next_action(ClickWindowAction(WindowsUtil.instance.get_war3_window(), x, y)) \
             .start()
 
     def choose_hero(self):
@@ -67,13 +72,18 @@ class Strategy(ABC):
     def share_sharing(self):
         # 共享物品和角色
         ImageClickAction("setup") \
-            .set_next_action(ImageClickAction("itemSharing", 90)).set_timeout_second(.5).set_confidence(0.98) \
+            .set_next_action(ImageAppearAction("itemSharing").set_after_click_image("itemSharingSelected"))\
+            .set_timeout_second(0).set_confidence(0.98) \
             .set_next_action(KeyAction("F11")) \
-            .set_next_action(ImageClickAction("teamSharing", 150, 15)).set_timeout_second(0).set_confidence(0.95) \
-            .set_next_action(ImageClickAction("teamSharing", 150, 15)).set_timeout_second(0).set_confidence(0.95) \
-            .set_next_action(ImageClickAction("teamSharing", 150, 15)).set_timeout_second(0).set_confidence(0.95) \
+            .set_next_action(ImageAppearAction("teamSharing").set_after_click_image("teamSharingSelected")) \
+            .set_timeout_second(0).set_confidence(0.98) \
+            .set_next_action(ImageAppearAction("teamSharing").set_after_click_image("teamSharingSelected"))\
+            .set_timeout_second(0).set_confidence(0.98) \
+            .set_next_action(ImageAppearAction("teamSharing").set_after_click_image("teamSharingSelected")) \
+            .set_timeout_second(0).set_confidence(0.98) \
             .set_next_action(ImageClickAction("accept")).set_confidence(0.8).set_timeout_second(1) \
-            .set_next_action(KeyAction("Esc")).start()
+            .set_next_action(KeyAction("Esc")) \
+            .start()
 
     def transformation(self):
         # 等待其他玩家输入变身后输入变身
@@ -85,10 +95,9 @@ class Strategy(ABC):
             .start()
 
     def meditation(self):  # 冥想
-        window = WindowsUtil.instance.get_war3_window()
-        if window is not None and not window.isMinimized:
-            window.activate()
-            Hero.instance.meditation()
+        if not self.war3_window_available:
+            return
+        Hero.instance.meditation()
 
     def weapon_soul(self):
         def weapon_soul_opened():
@@ -96,29 +105,24 @@ class Strategy(ABC):
 
         # 器灵(631, 271), 物品栏第一行,第一列(942, 780)
         KeyAction("F2").set_next_action(
-            RegionSelectionInsideWindowAction(WindowsUtil.instance.get_war3_window(), 631, 271)) \
-            .set_next_action(ClickBasedOnWindowCenterAction(WindowsUtil.instance.get_war3_window(), button="RIGHT")) \
+            RegionSelectionWindowAction(WindowsUtil.instance.get_war3_window(), 631, 271)) \
+            .set_next_action(CenterClickWindowAction(WindowsUtil.instance.get_war3_window(), button="RIGHT")) \
             .set_next_action(ImageClickAction("weaponSoul", 0, 0)).set_confidence(0.7) \
             .set_success_func(weapon_soul_opened) \
             .start()
 
     def exit_game(self):
-        window = WindowsUtil.instance.get_war3_window()
-        if window is None:
+        app_window = WindowsUtil.instance.get_war3_window()
+        if app_window is None:
             return
-        if window.isMinimized:
-            window.restore()
-            window.activate()
+        if app_window.isMinimized:
+            app_window.restore()
+            app_window.activate()
         KeyAction("f10") \
             .set_next_action(KeyAction("e")) \
             .set_next_action(KeyAction("x")) \
             .set_next_action(KeyAction("x")) \
             .start()
-
-    """
-    createRoom -> waitForStart (-> selectModel -> selectDifficult) -> selectHero -> f7 -> move -> meditation 
-        -> waitForGameOver -> exit -> return2platform
-    """
 
     @abstractmethod
     def in_platform(self):
@@ -177,13 +181,16 @@ class WeaponSoulStrategy(Strategy):
                 self.select_model_and_difficulty()
                 if ImageAppearAction("setup").action():
                     self.war3_inited = True
+                    Log.w("war3 inited")
                     self.choose_hero()
-                    ImageClickAction("noticeBoard", 466, 32) \
+                    ImageAppearAction("noticeBoard")\
+                        .set_after_click_image("noticeBoardClose")\
                         .start()
                     ImageClickAction("weaponPassiveSkills").set_confidence(0.7).action()
                     self.meditation()
                     self.share_sharing()
                     # 镜头拉倒最远
+                    CenterMoveWindowAction(WindowsUtil.instance.get_war3_window(), 0, 0).start()
                     for i in range(15):
                         time.sleep(.05)
                         pyautogui.scroll(-1000)
@@ -202,10 +209,11 @@ class WeaponSoulStrategy(Strategy):
             #             return
             # 等待15波怪物 (658, 47, 685, 85) 回基地防守
             if ImageAppearAction("wave15").set_confidence(0.96).action():
-                window = WindowsUtil.instance.get_war3_window()
-                if window is not None and not window.isMinimized:
-                    window.activate()
+                app_window = WindowsUtil.instance.get_war3_window()
+                if app_window is not None and not app_window.isMinimized:
+                    app_window.activate()
                 self.needBackToBase = True
+                Log.w("need back to base")
                 KeyAction("F2").start()
             if not self.opened_weapon_soul and ImageAppearAction("over").set_confidence(0.95).action():
                 self.weapon_soul()
@@ -240,39 +248,19 @@ class CarryStrategy(Strategy):
         # self.exit_game()
 
 
-class HangUpStrategy(Strategy):
-    """
-    hang up strategy
-
-    springFestivalGift(635, 335), goods(520, 450), mysteryGift(720, 350)
-    domainOfShadows(330, 230), attributeCultivation(480, 260), resourceStore(635, 255), endlessTower(790, 260)
-    runeShop(350, 350), runeCopy(350, 470), killsShop(335, 580), 
-    heroicBreakthrough(915, 355), skilledShops(935, 460), raffleShop(945, 585)
-    """
-
-    def main_line(self):
-        pass
-
-    def carry(self):
-        pass
-
-
 if __name__ == '__main__':
     window = WindowsUtil.instance.get_war3_window()
     if window is not None:
         window.activate()
     strategy = WeaponSoulStrategy()
-    # strategy.in_platform()
-    # strategy.in_room()
-    # strategy.in_war3()
-    # Hero.instance.get_state()
-    while True:
-        lines = OCR.get_system_message(4)
-        for line in lines:
-            if line is None or line == "":
-                continue
-            if OCR.is_text_left_match(line, attack_warning):
-                pass
-            elif OCR.is_text_left_match(line, game_failed):
-                pass
-        time.sleep(1)
+    strategy.share_sharing()
+    # while True:
+    #     lines = OCR.get_system_message()
+    #     for line in lines:
+    #         if line is None or line == "":
+    #             continue
+    #         if OCR.is_text_left_match(line, attack_warning):
+    #             pass
+    #         elif OCR.is_text_left_match(line, game_failed):
+    #             pass
+    #     time.sleep(1)
